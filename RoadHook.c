@@ -24,7 +24,7 @@ HookedFunc* findHookedFunc(LPVOID originalFunction) {
 	return hookedFunc;
 }
 
-void initializeHook(LPVOID originalFunction, LPVOID redirectedFunction)
+void initializeHook(LPVOID originalFunction, LPVOID redirectedFunction, LPVOID* trampolineFunction)
 {
 	HookedFunc hookedFunc;
 	uint8_t backupPrologue[20];
@@ -43,15 +43,24 @@ void initializeHook(LPVOID originalFunction, LPVOID redirectedFunction)
 		offset += instruction.info.length;
 		runtime_address += instruction.info.length;
 	}
-
-	//copy NOP instructions after the last disassembled instruction
-	memset(&backupPrologue[0] + offset, 0x90, sizeof(backupPrologue) - offset);
-	
-	memcpy(&hookedFunc.backupPrologue, originalFunction, sizeof(backupPrologue));
+	memcpy(&hookedFunc.backupPrologue, &backupPrologue, sizeof(backupPrologue));
 	hookedFunc.isActive = false;
 	hookedFunc.originalFunction = originalFunction;
 	hookedFunc.redirectedFunction = redirectedFunction;
 	cvector_push_back(gHookedFuncs, hookedFunc);
+
+	//Create trampoline function
+	int sizeOfPrologue = offset;
+	LPVOID trampolineFuncAddr = VirtualAlloc(NULL, sizeOfPrologue + 5, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	memcpy(trampolineFuncAddr, &backupPrologue, sizeOfPrologue);
+
+	//Craft and insert JMP instruction
+	uint32_t distance = ((uint32_t)originalFunction + sizeOfPrologue) - ((uint32_t)trampolineFuncAddr + sizeOfPrologue + 5);
+	uint8_t jmpInstruction[5];
+	jmpInstruction[0] = 0xE9;
+	memcpy(&jmpInstruction[1], &distance, sizeof(distance));
+	memcpy((char*)trampolineFuncAddr + sizeOfPrologue, &jmpInstruction, sizeof(jmpInstruction));
+	*trampolineFunction = trampolineFuncAddr;
 }
 
 void enableHook(LPVOID originalFunction) {

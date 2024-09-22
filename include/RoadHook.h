@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-	void initializeHook(LPVOID originalFunction, LPVOID redirectedFunction);
+	void initializeHook(LPVOID originalFunction, LPVOID redirectedFunction, LPVOID* trampolineFunction);
 	void enableHook(LPVOID originalFunction);
 	void disableHook(LPVOID originalFunction);
 
