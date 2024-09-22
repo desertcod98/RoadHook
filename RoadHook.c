@@ -1,5 +1,4 @@
-#include "pch.h"
-#include "framework.h"
+#define WIN32_LEAN_AND_MEAN    
 #include <stdio.h>
 #include "include/RoadHook.h"
 #include "cvector.h"
