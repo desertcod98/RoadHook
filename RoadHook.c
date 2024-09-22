@@ -3,12 +3,13 @@
 #include <stdio.h>
 #include "include/RoadHook.h"
 #include "cvector.h"
+#include "Zydis.h"
 
 typedef struct {
 	LPVOID originalFunction;
 	LPVOID redirectedFunction;
 	bool isActive;
-	uint8_t backupPrologue[5];
+	uint8_t backupPrologue[20];
 } HookedFunc;
 
 cvector_vector_type(HookedFunc) gHookedFuncs = NULL;
@@ -26,7 +27,26 @@ HookedFunc* findHookedFunc(LPVOID originalFunction) {
 void initializeHook(LPVOID originalFunction, LPVOID redirectedFunction)
 {
 	HookedFunc hookedFunc;
-	uint8_t backupPrologue[5];
+	uint8_t backupPrologue[20];
+
+	ZyanU64 runtime_address = 0x0040AC50;
+	ZyanUSize offset = 0;
+	ZydisDisassembledInstruction instruction;
+	while (ZYAN_SUCCESS(ZydisDisassembleIntel(
+		/* machine_mode:    */ ZYDIS_MACHINE_MODE_LEGACY_32,
+		/* runtime_address: */ runtime_address,
+		/* buffer:          */ (ZyanU8*)originalFunction + offset,
+		/* length:          */ sizeof(backupPrologue) - offset,
+		/* instruction:     */ &instruction
+	)) && offset < 5) {
+		memcpy(&backupPrologue[0] + offset, (uint8_t*)originalFunction + offset, instruction.info.length);
+		offset += instruction.info.length;
+		runtime_address += instruction.info.length;
+	}
+
+	//copy NOP instructions after the last disassembled instruction
+	memset(&backupPrologue[0] + offset, 0x90, sizeof(backupPrologue) - offset);
+	
 	memcpy(&hookedFunc.backupPrologue, originalFunction, sizeof(backupPrologue));
 	hookedFunc.isActive = false;
 	hookedFunc.originalFunction = originalFunction;
@@ -63,7 +83,7 @@ void disableHook(LPVOID originalFunction) {
 		return;
 	}
 	if(hookedFunc->isActive){
-		memcpy(originalFunction, &hookedFunc->backupPrologue, sizeof(hookedFunc->backupPrologue));
+		memcpy(originalFunction, &hookedFunc->backupPrologue, 5);
 		hookedFunc->isActive = false;
 	}
 }
