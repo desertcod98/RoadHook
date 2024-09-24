@@ -19,7 +19,7 @@ You can then include the library in your C/C++ project like this:
 #include "E:\RoadHook\RoadHook.h"
 #pragma comment(lib, "E:\\RoadHook\\RoadHook.lib")
 
-//If you are using the trampoline function, define the it with the correct calling convention and arguments.
+//If you are using the trampoline function, define it with the correct calling convention and arguments.
 typedef int (WINAPI* MessageBoxWType)(HWND, LPCWSTR, LPCWSTR, UINT);
 //Function pointer to the 'original' function (in reality it is the trampoline function)
 MessageBoxWType messageBoxW = NULL;
